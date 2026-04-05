@@ -6,6 +6,9 @@
 <title>GPX Route Animator</title>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="style_forest.js"></script>
+<script src="style_heat.js"></script>
+<script src="style_ocean.js"></script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
@@ -20,15 +23,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
 .maplibregl-ctrl-logo,.maplibregl-ctrl-attrib-button{display:none!important}
 .maplibregl-ctrl-top-right,.maplibregl-ctrl-top-left,.maplibregl-ctrl-bottom-left{display:none!important}
 
-/* === SETUP SCREEN === */
+/* === SETUP === */
 #setup{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;background:#0b0f14;padding:32px;
-  transition:opacity .7s ease,visibility .7s ease}
+  align-items:center;justify-content:center;background:#0b0f14;padding:24px;
+  transition:opacity .7s ease,visibility .7s ease;overflow-y:auto}
 #setup.hidden{opacity:0;visibility:hidden;pointer-events:none}
 #setup h1{font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:8px;text-align:center}
-#setup .sub{font-size:14px;color:rgba(255,255,255,.45);margin-bottom:40px;text-align:center;line-height:1.5}
+#setup .sub{font-size:14px;color:rgba(255,255,255,.45);margin-bottom:32px;text-align:center;line-height:1.5}
 
-/* === FILE PICKER: Input direkt im Label, unsichtbar aber touch-tauglich === */
+/* === FILE PICKER === */
 .pick-wrap{
   display:flex;align-items:center;justify-content:center;gap:10px;
   width:100%;max-width:320px;padding:18px 24px;
@@ -41,40 +44,69 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
 }
 .pick-wrap svg{width:22px;height:22px;flex-shrink:0;pointer-events:none}
 .pick-wrap span{pointer-events:none}
-
-/*
-  KRITISCH für Mobile:
-  - Der Input muss ÜBER allem liegen (z-index:999)
-  - Nicht overflow:hidden auf dem Parent (verhindert Touch auf iOS)
-  - opacity:0.001 statt 0 (manche Browser skippen opacity:0 bei Touch)
-  - Mindestens font-size:16px (iOS Safari ignoriert sonst Touch)
-  - touch-action:manipulation (verhindert 300ms Delay)
-*/
 .pick-wrap input[type="file"]{
-  position:absolute;top:0;left:0;
-  width:100%;height:100%;
-  opacity:0.001;
-  cursor:pointer;
-  z-index:999;
-  font-size:16px;
-  touch-action:manipulation;
-  -webkit-appearance:none;
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  opacity:0.001;cursor:pointer;z-index:999;
+  font-size:16px;touch-action:manipulation;-webkit-appearance:none;
 }
 
 /* === FILE INFO === */
-#file-info{margin-top:20px;font-size:13px;color:rgba(255,255,255,.5);
-  text-align:center;min-height:20px;max-width:320px;word-break:break-word}
+#file-info{margin-top:16px;font-size:13px;color:rgba(255,255,255,.5);
+  text-align:center;min-height:18px;max-width:320px;word-break:break-word}
 #file-info.error{color:#FF6B6B}
 #file-info.success{color:#4ECDC4}
 
 /* === OPTIONEN === */
-#options{margin-top:28px;width:100%;max-width:320px;display:none}
+#options{margin-top:24px;width:100%;max-width:320px;display:none}
 #options.visible{display:block}
+
 .opt-row{display:flex;align-items:center;justify-content:space-between;
-  padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06)}
-.opt-row span{font-size:14px;color:rgba(255,255,255,.7)}
-.opt-row select{background:rgba(255,255,255,.08);color:#fff;
-  border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 10px;font-size:13px}
+  padding:14px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.opt-row .lbl{font-size:14px;color:rgba(255,255,255,.7)}
+
+/* Select: dunkler Hintergrund, helle Schrift, auch für Optionen */
+.opt-row select{
+  background:#1a1f28;color:#e0e0e0;
+  border:1px solid rgba(255,255,255,.15);border-radius:8px;
+  padding:8px 12px;font-size:14px;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+  padding-right:30px;
+}
+.opt-row select option{background:#1a1f28;color:#e0e0e0}
+
+/* === FARBPRESET-AUSWAHL === */
+.presets{display:flex;gap:10px;margin-top:4px}
+.preset-btn{
+  flex:1;padding:10px 6px;border-radius:12px;border:2px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.04);cursor:pointer;text-align:center;
+  transition:border-color .2s,background .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.preset-btn.active{border-color:#4ECDC4;background:rgba(78,205,196,.1)}
+.preset-btn .dot{
+  width:28px;height:28px;border-radius:50%;margin:0 auto 6px;
+  border:2px solid rgba(255,255,255,.15);
+}
+.preset-btn .name{font-size:11px;color:rgba(255,255,255,.6);font-weight:500}
+.preset-btn.active .name{color:#fff}
+
+/* === SLIDER === */
+.slider-wrap{display:flex;align-items:center;gap:12px;flex:1;justify-content:flex-end}
+.slider-wrap input[type="range"]{
+  width:120px;height:4px;-webkit-appearance:none;appearance:none;
+  background:rgba(255,255,255,.15);border-radius:2px;outline:none;
+}
+.slider-wrap input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:#4ECDC4;cursor:pointer;border:none;
+}
+.slider-wrap input[type="range"]::-moz-range-thumb{
+  width:20px;height:20px;border-radius:50%;
+  background:#4ECDC4;cursor:pointer;border:none;
+}
+.slider-val{font-size:14px;color:#e0e0e0;font-weight:600;min-width:32px;text-align:right}
 
 /* === START BUTTON === */
 #go-btn{display:none;width:100%;max-width:320px;margin-top:24px;padding:18px 24px;
@@ -84,38 +116,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
   transition:transform .15s ease,box-shadow .15s ease;
   box-shadow:0 4px 24px rgba(255,107,53,.3)}
 #go-btn.visible{display:block}
-#go-btn:active{transform:scale(.97);box-shadow:0 2px 12px rgba(255,107,53,.2)}
-
-/* === STATS === */
-#stats{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:100;
-  display:flex;gap:24px;padding:10px 24px;
-  background:rgba(0,0,0,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border-radius:18px;border:1px solid rgba(255,255,255,.07);
-  opacity:0;transition:opacity .6s ease;pointer-events:none}
-#stats.visible{opacity:1}
-.st{text-align:center}
-.st .v{font-size:17px;font-weight:700;letter-spacing:-.3px}
-.st .l{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.2px;margin-top:2px}
+#go-btn:active{transform:scale(.97)}
 
 /* === FORTSCHRITT === */
 #prog{position:fixed;bottom:0;left:0;height:3px;width:0%;
-  background:linear-gradient(90deg,#4ECDC4,#FF6B35);z-index:200;
-  box-shadow:0 0 10px rgba(78,205,196,.4);transition:width .05s linear}
+  z-index:200;box-shadow:0 0 10px rgba(78,205,196,.4);transition:width .05s linear}
 
-/* === COUNTDOWN === */
-#cd{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;
-  background:rgba(11,15,20,.85);opacity:0;visibility:hidden;
-  transition:opacity .3s ease,visibility .3s ease}
-#cd.vis{opacity:1;visibility:visible}
-#cd .n{font-size:72px;font-weight:800;color:#4ECDC4;animation:cp .6s ease}
-@keyframes cp{0%{transform:scale(1.4);opacity:0}50%{opacity:1}100%{transform:scale(1);opacity:1}}
-
-.icon-rt{width:72px;height:72px;margin-bottom:28px;opacity:.85}
+.icon-rt{width:64px;height:64px;margin-bottom:24px;opacity:.85}
 </style>
 </head>
 <body>
 
-<!-- ======= SETUP ======= -->
 <div id="setup">
   <svg class="icon-rt" viewBox="0 0 72 72" fill="none">
     <circle cx="14" cy="14" r="6" fill="#4ECDC4"/>
@@ -128,15 +139,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
   </svg>
 
   <h1>Route Animator</h1>
-  <p class="sub">GPX-Datei laden, dann Screen Recording starten.<br>Die Animation läuft vollautomatisch.</p>
+  <p class="sub">GPX laden · Stil wählen · Screen Recording starten</p>
 
-  <!--
-    MOBILER FILE-PICKER:
-    Das <input type="file"> liegt direkt im <label>, unsichtbar
-    aber mit voller Größe über dem sichtbaren Button.
-    Kein for=/id= nötig. Kein JS click()-Hack.
-    Der Tap trifft direkt den nativen File-Input.
-  -->
   <label class="pick-wrap">
     <input type="file" id="gpx-input" accept=".gpx,.xml">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -152,24 +156,48 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
   <div id="file-info"></div>
 
   <div id="options">
-    <div class="opt-row"><span>Dauer</span>
-      <select id="opt-dur">
-        <option value="8000">8 Sek</option>
-        <option value="12000" selected>12 Sek</option>
-        <option value="18000">18 Sek</option>
-        <option value="25000">25 Sek</option>
-        <option value="35000">35 Sek</option>
-      </select>
+    <!-- FARBPRESET -->
+    <div class="opt-row" style="flex-direction:column;align-items:stretch;gap:8px">
+      <div class="lbl">Stil</div>
+      <div class="presets">
+        <div class="preset-btn active" data-preset="forest">
+          <div class="dot" style="background:#0056C4"></div>
+          <div class="name">Forest</div>
+        </div>
+        <div class="preset-btn" data-preset="heat">
+          <div class="dot" style="background:#FB5505"></div>
+          <div class="name">Heat</div>
+        </div>
+        <div class="preset-btn" data-preset="ocean">
+          <div class="dot" style="background:#F76462"></div>
+          <div class="name">Ocean</div>
+        </div>
+      </div>
     </div>
-    <div class="opt-row"><span>Kamerawinkel</span>
+
+    <!-- DAUER SLIDER -->
+    <div class="opt-row">
+      <div class="lbl">Dauer</div>
+      <div class="slider-wrap">
+        <input type="range" id="opt-dur" min="2" max="10" value="6" step="1">
+        <div class="slider-val" id="dur-val">6s</div>
+      </div>
+    </div>
+
+    <!-- KAMERAWINKEL -->
+    <div class="opt-row">
+      <div class="lbl">Kamera</div>
       <select id="opt-pitch">
-        <option value="0">Draufsicht</option>
+        <option value="0" selected>Draufsicht</option>
         <option value="35">Leicht geneigt</option>
-        <option value="50" selected>3D-Perspektive</option>
+        <option value="50">3D-Perspektive</option>
         <option value="60">Starke Neigung</option>
       </select>
     </div>
-    <div class="opt-row"><span>Wiederholung</span>
+
+    <!-- WIEDERHOLUNG -->
+    <div class="opt-row">
+      <div class="lbl">Wiederholung</div>
       <select id="opt-loop">
         <option value="1" selected>Endlosschleife</option>
         <option value="0">Einmal</option>
@@ -180,35 +208,59 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
   <button id="go-btn">▶︎ Animation starten</button>
 </div>
 
-<!-- ======= COUNTDOWN ======= -->
-<div id="cd"><div class="n" id="cd-n"></div></div>
-
-<!-- ======= MAP ======= -->
 <div id="map"></div>
-
-<!-- ======= STATS ======= -->
-<div id="stats">
-  <div class="st"><div class="v" id="s-d">—</div><div class="l">km</div></div>
-  <div class="st"><div class="v" id="s-e">—</div><div class="l">Hm ↑</div></div>
-</div>
 <div id="prog"></div>
 
 <script>
-/* ============ CONFIG ============ */
-const C = {
-  style:'https://tiles.openfreemap.org/styles/liberty',
-  dur:12000, restPause:3500, loop:true, pitch:50,
-  pad:{top:80,bottom:110,left:40,right:40},
-  rotDeg:35,
-  lineCol:'#FF6B35', lineW:5,
-  glowCol:'rgba(255,107,53,0.25)', glowW:16,
-  dotCol:'#4ECDC4',
+/* ============================================================
+   FARBPRESETS
+   ============================================================ */
+const PRESETS = {
+  forest: {
+    lineCol: '#0056C4',
+    casingCol: '#ffffff',
+    casingW: 9,
+    dotCol:  '#0056C4',
+    progGrad:'linear-gradient(90deg,#0056C4,#0068E0)',
+    mapStyle: style_forest,
+  },
+  heat: {
+    lineCol: '#FB5505',
+    casingCol: '#ffffff',
+    casingW: 7,
+    dotCol:  '#FB5505',
+    progGrad:'linear-gradient(90deg,#FB5505,#FF6D00)',
+    mapStyle: style_heat,
+  },
+  ocean: {
+    lineCol: '#F76462',
+    casingCol: '#ffffff',
+    casingW: 7,
+    dotCol:  '#F76462',
+    progGrad:'linear-gradient(90deg,#F76462,#E85550)',
+    mapStyle: style_ocean,
+  },
 };
 
-/* ============ STATE ============ */
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const C = {
+  dur:6000, restPause:3000, loop:true, pitch:0,
+  pad:{top:60,bottom:60,left:40,right:40},
+  rotDeg:30,
+  lineW:5,
+  preset:'forest',
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
 let map=null, coords=[], animStart=null;
 
-/* ============ GPX PARSER ============ */
+/* ============================================================
+   GPX PARSER
+   ============================================================ */
 function parseGPX(txt){
   const doc=new DOMParser().parseFromString(txt,'application/xml');
   if(doc.querySelector('parsererror')) throw new Error('Ungültige GPX-Datei');
@@ -227,7 +279,6 @@ function parseGPX(txt){
   return out;
 }
 
-/* ============ ANALYSE ============ */
 function analyze(c){
   let dist=0,up=0;
   for(let i=1;i<c.length;i++){
@@ -239,7 +290,6 @@ function analyze(c){
   return {km:(dist/1000).toFixed(1),hm:Math.round(up)};
 }
 
-/* ============ BOUNDS + BEARING ============ */
 function getBounds(c){
   let a=[Infinity,Infinity],b=[-Infinity,-Infinity];
   c.forEach(([x,y])=>{if(x<a[0])a[0]=x;if(y<a[1])a[1]=y;if(x>b[0])b[0]=x;if(y>b[1])b[1]=y});
@@ -253,7 +303,6 @@ function getBearing(a,b){
   return(Math.atan2(y,x)*180/Math.PI+360)%360;
 }
 
-/* ============ SUBLINE ============ */
 function subLine(c,f){
   if(f<=0)return[c[0]];if(f>=1)return c;
   const segs=[];let tot=0;
@@ -274,50 +323,51 @@ function subLine(c,f){
   return r;
 }
 
-/* ============ MAP INIT ============ */
+/* ============================================================
+   MAP
+   ============================================================ */
 function initMap(){
   map=new maplibregl.Map({
-    container:'map',style:C.style,
+    container:'map',style:PRESETS[C.preset].mapStyle,
     center:[11.4,47.26],zoom:10,pitch:0,bearing:0,
     attributionControl:true,dragRotate:false
   });
   return new Promise(r=>map.on('load',r));
 }
 
-/* ============ LAYERS ============ */
 function addLayers(){
+  const p=PRESETS[C.preset];
   const empty={type:'Feature',geometry:{type:'LineString',coordinates:[]}};
-  map.addSource('glow',{type:'geojson',data:JSON.parse(JSON.stringify(empty))});
+  map.addSource('casing',{type:'geojson',data:JSON.parse(JSON.stringify(empty))});
   map.addSource('line',{type:'geojson',data:JSON.parse(JSON.stringify(empty))});
   map.addSource('dot',{type:'geojson',data:{type:'Feature',geometry:{type:'Point',coordinates:coords[0]}}});
-  map.addLayer({id:'glow',type:'line',source:'glow',
+  map.addLayer({id:'casing',type:'line',source:'casing',
     layout:{'line-cap':'round','line-join':'round'},
-    paint:{'line-color':C.glowCol,'line-width':C.glowW,'line-blur':6}});
+    paint:{'line-color':p.casingCol,'line-width':p.casingW}});
   map.addLayer({id:'line',type:'line',source:'line',
     layout:{'line-cap':'round','line-join':'round'},
-    paint:{'line-color':C.lineCol,'line-width':C.lineW}});
+    paint:{'line-color':p.lineCol,'line-width':C.lineW}});
   map.addLayer({id:'dot',type:'circle',source:'dot',
-    paint:{'circle-radius':7,'circle-color':C.dotCol,
+    paint:{'circle-radius':7,'circle-color':p.dotCol,
       'circle-stroke-width':2.5,'circle-stroke-color':'#fff','circle-blur':.15}});
 }
 
-/* ============ ANIMATION ============ */
+/* ============================================================
+   ANIMATION
+   ============================================================ */
 function startAnim(){
-  C.dur=parseInt(document.getElementById('opt-dur').value);
-  C.pitch=parseInt(document.getElementById('opt-pitch').value);
-  C.loop=document.getElementById('opt-loop').value==='1';
+  const p=PRESETS[C.preset];
+  document.getElementById('prog').style.background=p.progGrad;
+
   const b=getBounds(coords);
   const br=getBearing(coords[0],coords[coords.length-1]);
   map.easeTo({pitch:C.pitch,bearing:br-15,duration:1500,easing:t=>t*(2-t)});
   map.fitBounds(b,{padding:C.pad,duration:1800,maxZoom:15});
-  const info=analyze(coords);
-  document.getElementById('s-d').textContent=info.km;
-  document.getElementById('s-e').textContent=info.hm;
+
   setTimeout(()=>{
-    document.getElementById('stats').classList.add('visible');
     animStart=null;
     requestAnimationFrame(tick);
-  },2200);
+  },2000);
 }
 
 function tick(ts){
@@ -327,7 +377,7 @@ function tick(ts){
   const t=raw<.5?2*raw*raw:-1+(4-2*raw)*raw;
   const sc=subLine(coords,t);
   const ld={type:'Feature',geometry:{type:'LineString',coordinates:sc}};
-  map.getSource('glow').setData(ld);
+  map.getSource('casing').setData(ld);
   map.getSource('line').setData(ld);
   const tip=sc[sc.length-1];
   map.getSource('dot').setData({type:'Feature',geometry:{type:'Point',coordinates:tip}});
@@ -345,40 +395,45 @@ function tick(ts){
 
 function resetAnim(){
   const e={type:'Feature',geometry:{type:'LineString',coordinates:[]}};
-  map.getSource('glow').setData(e);
+  map.getSource('casing').setData(e);
   map.getSource('line').setData(e);
   map.getSource('dot').setData({type:'Feature',geometry:{type:'Point',coordinates:coords[0]}});
   document.getElementById('prog').style.width='0%';
 }
 
-/* ============ COUNTDOWN ============ */
-async function countdown(){
-  const cd=document.getElementById('cd');
-  const cn=document.getElementById('cd-n');
-  cd.classList.add('vis');
-  for(let i=3;i>=1;i--){
-    cn.textContent=i;cn.style.animation='none';
-    void cn.offsetWidth;cn.style.animation='cp .6s ease';
-    await new Promise(r=>setTimeout(r,1000));
-  }
-  cd.classList.remove('vis');
-}
+/* ============================================================
+   UI EVENTS
+   ============================================================ */
 
-/* ============ FILE INPUT ============ */
+// Slider: Dauer
+const durSlider=document.getElementById('opt-dur');
+const durVal=document.getElementById('dur-val');
+durSlider.addEventListener('input',function(){
+  durVal.textContent=this.value+'s';
+});
+
+// Preset Buttons
+document.querySelectorAll('.preset-btn').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    this.classList.add('active');
+    C.preset=this.dataset.preset;
+  });
+});
+
+// File Input
 document.getElementById('gpx-input').addEventListener('change', async function(){
   const file=this.files&&this.files[0];
   if(!file) return;
-
   const info_el=document.getElementById('file-info');
   info_el.className='';
   info_el.textContent='Wird gelesen…';
-
   try{
     const txt=await file.text();
     coords=parseGPX(txt);
     const info=analyze(coords);
     info_el.className='success';
-    info_el.textContent='✓ '+file.name+' · '+coords.length+' Pkt · '+info.km+' km · '+info.hm+' Hm';
+    info_el.textContent='✓ '+file.name+' · '+coords.length+' Punkte · '+info.km+' km';
     document.getElementById('options').classList.add('visible');
     document.getElementById('go-btn').classList.add('visible');
   }catch(err){
@@ -389,14 +444,17 @@ document.getElementById('gpx-input').addEventListener('change', async function()
   }
 });
 
-/* ============ START ============ */
+// Start
 document.getElementById('go-btn').addEventListener('click', async function(){
+  // Config aus UI lesen
+  C.dur=parseInt(durSlider.value)*1000;
+  C.pitch=parseInt(document.getElementById('opt-pitch').value);
+  C.loop=document.getElementById('opt-loop').value==='1';
+
   document.getElementById('setup').classList.add('hidden');
   if(!map){await initMap();addLayers();}
   document.getElementById('map').classList.add('visible');
   await new Promise(r=>setTimeout(r,600));
-  await countdown();
-  await new Promise(r=>setTimeout(r,800));
   startAnim();
 });
 
