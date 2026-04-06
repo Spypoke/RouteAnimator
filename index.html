@@ -132,6 +132,38 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
 #elev-km{position:absolute;top:8px;right:12px;font-size:11px;font-weight:600;
   color:rgba(0,0,0,.4);letter-spacing:.3px}
 
+/* === OUTRO === */
+#outro-overlay{position:fixed;inset:0;z-index:300;display:flex;align-items:center;
+  justify-content:center;background:rgba(0,0,0,0);pointer-events:none;
+  transition:background 0.8s ease}
+#outro-overlay.dim{background:rgba(0,0,0,.9)}
+
+#share-btn{width:88px;height:88px;background:rgba(255,255,255,.95);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 32px rgba(0,0,0,.25);
+  opacity:0;transform:scale(0);transition:none}
+#share-btn svg{width:40px;height:40px;color:#333}
+#share-btn.show{animation:shareInTapOut 1.8s cubic-bezier(.25,1,.5,1) forwards}
+
+#app-icon{position:absolute;width:150px;height:150px;border-radius:32px;
+  box-shadow:0 10px 48px rgba(0,0,0,.4);background:#0b0f14;
+  opacity:0;transform:scale(.8);transition:none}
+#app-icon.show{animation:iconIn .6s cubic-bezier(.34,1.3,.64,1) forwards}
+
+@keyframes shareInTapOut{
+  0%{opacity:0;transform:scale(0)}
+  25%{opacity:1;transform:scale(1)}
+  50%{opacity:1;transform:scale(1)}
+  60%{opacity:1;transform:scale(.85)}
+  70%{opacity:1;transform:scale(1.05)}
+  80%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(.6)}
+}
+@keyframes iconIn{
+  0%{opacity:0;transform:scale(.8)}
+  100%{opacity:1;transform:scale(1)}
+}
+
 .icon-rt{width:64px;height:64px;margin-bottom:24px;opacity:.85}
 </style>
 </head>
@@ -209,8 +241,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
     <div class="opt-row">
       <div class="lbl">Wiederholung</div>
       <select id="opt-loop">
-        <option value="1" selected>Endlosschleife</option>
-        <option value="0">Einmal</option>
+        <option value="1">Endlosschleife</option>
+        <option value="0" selected>Einmal</option>
       </select>
     </div>
   </div>
@@ -219,6 +251,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0f14;
 </div>
 
 <div id="map"></div>
+<div id="outro-overlay">
+  <div id="share-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+      <polyline points="16 6 12 2 8 6"/>
+      <line x1="12" y1="2" x2="12" y2="15"/>
+    </svg>
+  </div>
+  <canvas id="app-icon"></canvas>
+</div>
 <div id="elev-wrap">
   <canvas id="elev-canvas"></canvas>
   <div id="elev-hm"></div>
@@ -260,7 +302,7 @@ const PRESETS = {
    CONFIG
    ============================================================ */
 const C = {
-  dur:6000, restPause:3000, loop:true, pitch:0,
+  dur:6000, restPause:3000, loop:false, pitch:0,
   pad:{top:60,bottom:60,left:40,right:40},
   rotDeg:30,
   lineW:5,
@@ -402,49 +444,123 @@ function drawElev(frac){
   const pad={t:14,b:8,l:4,r:4};
   const cw=w-pad.l-pad.r, ch=h-pad.t-pad.b;
 
-  const cutIdx=Math.floor(frac*(elevData.length-1));
-  const cutFrac=frac*(elevData.length-1)-cutIdx;
-  let visibleData=elevData.slice(0,cutIdx+1);
-  if(cutIdx<elevData.length-1){
-    const a=elevData[cutIdx], b=elevData[cutIdx+1];
-    visibleData.push({d:a.d+cutFrac*(b.d-a.d), e:a.e+cutFrac*(b.e-a.e)});
-  }
-
   const toX=d=>pad.l+(d/totalDist)*cw;
   const toY=e=>pad.t+ch-(((e-minE)/range)*ch*0.85);
 
+  // Komplettes Profil in Grau (Hintergrund)
   ctx.beginPath();
-  ctx.moveTo(toX(visibleData[0].d),toY(visibleData[0].e));
-  for(let i=1;i<visibleData.length;i++) ctx.lineTo(toX(visibleData[i].d),toY(visibleData[i].e));
-  const lastX=toX(visibleData[visibleData.length-1].d);
-  ctx.lineTo(lastX,h);
-  ctx.lineTo(toX(visibleData[0].d),h);
+  ctx.moveTo(toX(elevData[0].d),toY(elevData[0].e));
+  for(let i=1;i<elevData.length;i++) ctx.lineTo(toX(elevData[i].d),toY(elevData[i].e));
+  ctx.lineTo(toX(elevData[elevData.length-1].d),h);
+  ctx.lineTo(toX(elevData[0].d),h);
   ctx.closePath();
-  const col=p.lineCol;
-  const r=parseInt(col.slice(1,3),16),g=parseInt(col.slice(3,5),16),b2=parseInt(col.slice(5,7),16);
-  ctx.fillStyle=`rgba(${r},${g},${b2},0.18)`;
+  ctx.fillStyle='rgba(0,0,0,0.06)';
   ctx.fill();
 
   ctx.beginPath();
-  ctx.moveTo(toX(visibleData[0].d),toY(visibleData[0].e));
-  for(let i=1;i<visibleData.length;i++) ctx.lineTo(toX(visibleData[i].d),toY(visibleData[i].e));
-  ctx.strokeStyle=p.lineCol;
-  ctx.lineWidth=2.5;
+  ctx.moveTo(toX(elevData[0].d),toY(elevData[0].e));
+  for(let i=1;i<elevData.length;i++) ctx.lineTo(toX(elevData[i].d),toY(elevData[i].e));
+  ctx.strokeStyle='rgba(0,0,0,0.12)';
+  ctx.lineWidth=1.5;
   ctx.lineJoin='round';
   ctx.stroke();
 
-  const totalUp=computeUphill(visibleData);
-  const currentDist=visibleData[visibleData.length-1].d;
-  document.getElementById('elev-hm').textContent=Math.round(totalUp)+' hm';
-  document.getElementById('elev-hm').style.color=p.lineCol;
-  document.getElementById('elev-km').textContent=(currentDist/1000).toFixed(1)+' km';
-  document.getElementById('elev-km').style.color=p.lineCol;
+  // Farbiges Profil bis zur aktuellen Position
+  if(frac>0){
+    const cutIdx=Math.floor(frac*(elevData.length-1));
+    const cutFrac=frac*(elevData.length-1)-cutIdx;
+    let visibleData=elevData.slice(0,cutIdx+1);
+    if(cutIdx<elevData.length-1){
+      const a=elevData[cutIdx], b=elevData[cutIdx+1];
+      visibleData.push({d:a.d+cutFrac*(b.d-a.d), e:a.e+cutFrac*(b.e-a.e)});
+    }
+
+    const col=p.lineCol;
+    const rc=parseInt(col.slice(1,3),16),gc=parseInt(col.slice(3,5),16),bc=parseInt(col.slice(5,7),16);
+
+    ctx.beginPath();
+    ctx.moveTo(toX(visibleData[0].d),toY(visibleData[0].e));
+    for(let i=1;i<visibleData.length;i++) ctx.lineTo(toX(visibleData[i].d),toY(visibleData[i].e));
+    const lastX=toX(visibleData[visibleData.length-1].d);
+    ctx.lineTo(lastX,h);
+    ctx.lineTo(toX(visibleData[0].d),h);
+    ctx.closePath();
+    ctx.fillStyle=`rgba(${rc},${gc},${bc},0.18)`;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(toX(visibleData[0].d),toY(visibleData[0].e));
+    for(let i=1;i<visibleData.length;i++) ctx.lineTo(toX(visibleData[i].d),toY(visibleData[i].e));
+    ctx.strokeStyle=p.lineCol;
+    ctx.lineWidth=2.5;
+    ctx.lineJoin='round';
+    ctx.stroke();
+
+    // Mitfahrender Punkt
+    const tipD=visibleData[visibleData.length-1];
+    const cx=toX(tipD.d), cy=toY(tipD.e);
+    ctx.beginPath();
+    ctx.arc(cx,cy,5,0,Math.PI*2);
+    ctx.fillStyle=p.lineCol;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx,cy,5,0,Math.PI*2);
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=2;
+    ctx.stroke();
+
+    const totalUp=computeUphill(visibleData);
+    const currentDist=visibleData[visibleData.length-1].d;
+    document.getElementById('elev-hm').textContent=Math.round(totalUp)+' hm';
+    document.getElementById('elev-hm').style.color=p.lineCol;
+    document.getElementById('elev-km').textContent=(currentDist/1000).toFixed(1)+' km';
+    document.getElementById('elev-km').style.color=p.lineCol;
+  }else{
+    document.getElementById('elev-hm').textContent='0 hm';
+    document.getElementById('elev-hm').style.color='rgba(0,0,0,.3)';
+    document.getElementById('elev-km').textContent='0.0 km';
+    document.getElementById('elev-km').style.color='rgba(0,0,0,.3)';
+  }
 }
 
 function computeUphill(data){
   let up=0;
   for(let i=1;i<data.length;i++){const d=data[i].e-data[i-1].e;if(d>0)up+=d;}
   return up;
+}
+
+/* ============================================================
+   OUTRO SEQUENZ
+   ============================================================ */
+function playOutro(){
+  const overlay=document.getElementById('outro-overlay');
+  const share=document.getElementById('share-btn');
+  const icon=document.getElementById('app-icon');
+
+  setTimeout(()=>{
+    document.getElementById('elev-wrap').style.transition='opacity .5s ease, transform .5s ease';
+    document.getElementById('elev-wrap').style.opacity='0';
+    document.getElementById('elev-wrap').style.transform='translateY(20px)';
+    overlay.classList.add('dim');
+  },200);
+
+  setTimeout(()=>{
+    share.classList.add('show');
+  },400);
+
+  setTimeout(()=>{
+    share.style.display='none';
+    const dpr=window.devicePixelRatio||1;
+    icon.width=150*dpr; icon.height=150*dpr;
+    const ictx=icon.getContext('2d');
+    const img=new Image();
+    img.onload=()=>{
+      ictx.scale(dpr,dpr);
+      ictx.drawImage(img, 180,120,680,780, 0,0,150,150);
+      icon.classList.add('show');
+    };
+    img.src='splash_screen.png';
+  },2200);
 }
 
 /* ============================================================
@@ -469,7 +585,7 @@ function tick(ts){
   if(!animStart)animStart=ts;
   const elapsed=ts-animStart;
   let raw=Math.min(elapsed/C.dur,1);
-  const t=raw<.5?2*raw*raw:-1+(4-2*raw)*raw;
+  const t=raw;
   const sc=subLine(coords,t);
   const ld={type:'Feature',geometry:{type:'LineString',coordinates:sc}};
   map.getSource('casing').setData(ld);
@@ -484,7 +600,11 @@ function tick(ts){
   if(raw<1){requestAnimationFrame(tick)}
   else{
     drawElev(1);
-    if(C.loop) setTimeout(()=>{resetAnim();animStart=null;requestAnimationFrame(tick)},C.restPause);
+    if(C.loop){
+      setTimeout(()=>{resetAnim();animStart=null;requestAnimationFrame(tick)},C.restPause);
+    }else{
+      playOutro();
+    }
   }
 }
 
